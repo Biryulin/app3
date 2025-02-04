@@ -47,7 +47,7 @@ namespace app3
             InitializeComponent();
         }
         public string connstr = "Host=localhost;Username=postgres;Password=admin;Database=04.02";
-
+        //d
         private async void Button_Click(object sender, RoutedEventArgs e)
         {
             var username = this.FindControl<TextBox>("Username").Text;
