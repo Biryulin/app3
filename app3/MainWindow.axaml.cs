@@ -8,6 +8,7 @@ using System.Data;
 using System.Security.Cryptography.X509Certificates;
 using System.Collections.Generic;
 using static app3.MainWindow;
+using Npgsql.TypeMapping;
 
 namespace app3
 {
@@ -26,6 +27,17 @@ namespace app3
             return Name + " " + Password + " лет";
         }
     }
+    public class User
+    {
+
+        public User(string n, string p)
+        {
+            Name = n;
+            Password = p;
+        }
+        public string Name { get; set; }
+        public string Password { get; set; }
+    }
 
     public partial class MainWindow : Window
     {
@@ -42,6 +54,7 @@ namespace app3
             var password = this.FindControl<TextBox>("password").Text;
 
             List<Student> students = new List<Student>();
+            List<User> users = new List<User>();
             await using var dataSource = NpgsqlDataSource.Create(connstr);
             await using (var cmd = dataSource.CreateCommand("SELECT * FROM student"))
             await using (var reader = await cmd.ExecuteReaderAsync())
@@ -52,25 +65,48 @@ namespace app3
                     students.Add(new Student(reader.GetString(1), reader.GetInt32(2).ToString()));
                 }
             }
-
-            if (IsValidUser(username, password))
+            await using (var cmd = dataSource.CreateCommand("SELECT * FROM users"))
+            await using (var reader = await cmd.ExecuteReaderAsync())
             {
-                string mes = "";
-                foreach (Student student in students)
+                while (await reader.ReadAsync())
                 {
-                    mes += student.View() + "\n";
+
+                    users.Add(new User(reader.GetString(0), reader.GetString(1)));
                 }
-                await ShowMessage(mes, "tittle");
+            }
+
+            if (IsValidUser(users, username, password))
+            {              
+                if (username == "admin")
+                {
+                    string mes = "";
+                    foreach (var student in students)
+                    {
+                        mes += student.View() + "\n";
+                    }
+                    await ShowMessage(mes, "Успех!");
+                }
+                else
+                {
+                    await ShowMessage("Вы вошли как студент", "Успех!");
+                }
+                
             }
             else
             {
                 await ShowMessage("Неверное имя пользователя или пароль.", "Ошибка");
             }
         }
-        private bool IsValidUser(string username, string password)
+        private bool IsValidUser(List<User> users, string username, string password)
         {
-            // Здесь должна быть ваша логика проверки пользователя
-            return username == "admin" && password == "postgres"; // Пример проверки
+            foreach (var user in users)
+            {
+                if (username == user.Name && password == user.Password)
+                {
+                    return true;
+                }
+            }
+            return false;
         }
         private async System.Threading.Tasks.Task ShowMessage(string message, string title)
         {
